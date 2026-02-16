@@ -1,0 +1,14 @@
+{
+  "name": "assemblyai-meeting-notes",
+  "version": "1.0.0",
+  "description": "CLI tool that transcribes meeting audio and generates notes using AssemblyAI",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "assemblyai": "^4.23.0",
+    "dotenv": "^17.3.1"
+  }
+}
