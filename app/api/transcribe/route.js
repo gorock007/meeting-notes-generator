@@ -1,8 +1,47 @@
 import { AssemblyAI } from "assemblyai";
+import { execFile } from "child_process";
+import { readFile, unlink } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
+import { randomUUID } from "crypto";
 
 const client = new AssemblyAI({
   apiKey: process.env.ASSEMBLYAI_API_KEY,
 });
+
+function isYouTubeUrl(url) {
+  return /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)/.test(
+    url
+  );
+}
+
+function downloadYouTubeAudio(url) {
+  return new Promise((resolve, reject) => {
+    const outputPath = join(tmpdir(), `yt-${randomUUID()}.%(ext)s`);
+    execFile(
+      "yt-dlp",
+      [
+        "-x",
+        "--audio-format",
+        "mp3",
+        "--no-playlist",
+        "-o",
+        outputPath,
+        url,
+      ],
+      { timeout: 120000 },
+      (error) => {
+        if (error) {
+          reject(new Error(`Failed to download YouTube audio: ${error.message}`));
+        } else {
+          // yt-dlp with -x --audio-format mp3 outputs as .mp3
+          const mp3Path = outputPath.replace("%(ext)s", "mp3");
+          resolve(mp3Path);
+        }
+      }
+    );
+  });
+}
 
 export async function POST(request) {
   if (!process.env.ASSEMBLYAI_API_KEY) {
@@ -11,6 +50,8 @@ export async function POST(request) {
       { status: 500 }
     );
   }
+
+  let tempFile = null;
 
   try {
     const contentType = request.headers.get("content-type") || "";
@@ -33,7 +74,15 @@ export async function POST(request) {
           { status: 400 }
         );
       }
-      audioSource = body.url;
+
+      if (isYouTubeUrl(body.url)) {
+        tempFile = await downloadYouTubeAudio(body.url);
+        const audioBuffer = await readFile(tempFile);
+        const uploadUrl = await client.files.upload(audioBuffer);
+        audioSource = uploadUrl;
+      } else {
+        audioSource = body.url;
+      }
     }
 
     // Transcribe with speaker diarization using Universal-3 Pro
@@ -62,5 +111,9 @@ export async function POST(request) {
       { error: err.message || "An unexpected error occurred." },
       { status: 500 }
     );
+  } finally {
+    if (tempFile) {
+      unlink(tempFile).catch(() => {});
+    }
   }
 }

@@ -28,11 +28,11 @@ export async function POST(request) {
           {
             role: "system",
             content:
-              "You are a helpful assistant that summarizes meeting transcripts. Provide concise, well-structured summaries.",
+              "You are a helpful assistant that summarizes meeting transcripts. Provide concise, well-structured summaries. Never reference speakers by labels like 'Speaker A' or 'Speaker B'. Instead, describe the discussion topics and outcomes without attributing statements to specific speaker labels.",
           },
           {
             role: "user",
-            content: `Provide a concise summary of this conversation in 3-5 sentences. Focus on the main points discussed, key decisions made, and any important outcomes.\n\nTranscript:\n${text}`,
+            content: `Provide a concise summary of this conversation in 3-5 sentences. Focus on the main topics discussed, key decisions made, and any important outcomes. Do not mention or reference any speaker labels (e.g. Speaker A, Speaker B) — just summarize the content naturally.\n\nTranscript:\n${text}`,
           },
         ],
         max_tokens: 500,

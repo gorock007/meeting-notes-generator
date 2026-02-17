@@ -165,8 +165,8 @@ export default function Home() {
             <em className="text-ink-muted">Generator</em>
           </h1>
           <p className="text-ink-muted text-base max-w-sm mx-auto leading-relaxed">
-            Paste an audio URL or upload a file to generate AI&#8209;powered
-            meeting notes.
+            Paste an audio URL, YouTube link, or upload a file to
+            generate AI&#8209;powered meeting notes.
           </p>
         </header>
 
@@ -176,7 +176,7 @@ export default function Home() {
             {/* URL Input */}
             <div className="mb-5">
               <label className="block text-xs font-medium tracking-wide uppercase text-ink-muted mb-2">
-                Audio URL
+                Audio or YouTube URL
               </label>
               <input
                 type="url"
@@ -186,7 +186,7 @@ export default function Home() {
                   setFile(null);
                   if (fileInputRef.current) fileInputRef.current.value = "";
                 }}
-                placeholder="https://example.com/meeting-audio.mp3"
+                placeholder="https://youtube.com/watch?v=... or audio URL"
                 disabled={loading || !!file}
                 className="w-full border border-rule bg-cream/50 rounded-sm px-4 py-3 text-ink placeholder-ink-muted/50 input-focus transition-colors disabled:opacity-40 text-sm"
               />
