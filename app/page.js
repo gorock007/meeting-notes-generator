@@ -75,7 +75,7 @@ export default function Home() {
       }
 
       setResult(data);
-      setActiveTab(data.lemurAvailable ? "summary" : "transcript");
+      setActiveTab(data.summaryAvailable ? "summary" : "transcript");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -374,9 +374,13 @@ export default function Home() {
 
             {/* Tabs */}
             <div className="flex gap-0 border-b border-rule mb-0">
-              {TABS.filter(
-                (t) => t.key === "transcript" || result.lemurAvailable
-              ).map((t) => (
+              {TABS.filter((t) => {
+                if (t.key === "transcript") return true;
+                if (t.key === "summary") return result.summaryAvailable;
+                if (t.key === "topics") return result.topicsAvailable;
+                if (t.key === "actions") return result.lemurAvailable;
+                return result.lemurAvailable;
+              }).map((t) => (
                 <button
                   key={t.key}
                   onClick={() => setActiveTab(t.key)}
@@ -396,7 +400,7 @@ export default function Home() {
 
             {/* Tab Content */}
             <div className="card p-6 sm:p-8 border-t-0">
-              {activeTab === "summary" && result.lemurAvailable && (
+              {activeTab === "summary" && result.summaryAvailable && (
                 <div className="fade-up">
                   <p className="text-ink-light leading-[1.8] text-[15px] whitespace-pre-wrap">
                     {result.summary}
@@ -412,7 +416,7 @@ export default function Home() {
                 </div>
               )}
 
-              {activeTab === "topics" && result.lemurAvailable && (
+              {activeTab === "topics" && result.topicsAvailable && (
                 <div className="fade-up">
                   <div className="text-ink-light leading-[1.8] text-[15px] whitespace-pre-wrap">
                     {result.topics}
