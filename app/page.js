@@ -18,7 +18,6 @@ function speakerColor(speaker) {
 const STEPS = [
   { key: "uploading", label: "Uploading audio" },
   { key: "transcribing", label: "Transcribing with speaker labels" },
-  { key: "analyzing", label: "Generating AI notes with LeMUR" },
 ];
 
 export default function Home() {
@@ -64,7 +63,7 @@ export default function Home() {
         });
       }
 
-      setStep("analyzing");
+      setStep("transcribing");
       const data = await res.json();
 
       if (!res.ok) {
@@ -72,10 +71,6 @@ export default function Home() {
       }
 
       setResult(data);
-      // If LeMUR provided a summary, use it directly
-      if (data.lemurAvailable && data.summary) {
-        setSummary(data.summary);
-      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -138,11 +133,7 @@ export default function Home() {
       ? `## Summary\n\n${summary}\n\n---\n\n`
       : "";
 
-    const lemurSection = result.lemurAvailable
-      ? `## Action Items\n\n${result.actionItems}\n\n---\n\n## Topics Discussed\n\n${result.topics}\n\n---\n\n`
-      : "";
-
-    return `# Meeting Notes\n\n*Generated on ${new Date().toLocaleString()}*\n\n---\n\n${summarySection}${lemurSection}## Full Transcript\n\n${lines}\n`;
+    return `# Meeting Notes\n\n*Generated on ${new Date().toLocaleString()}*\n\n---\n\n${summarySection}## Full Transcript\n\n${lines}\n`;
   }
 
   function downloadMarkdown() {
