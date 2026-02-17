@@ -50,14 +50,11 @@ export async function POST(request) {
       audioSource = body.url;
     }
 
-    // Transcribe with speaker diarization, summarization, and auto chapters
+    // Transcribe with speaker diarization
     const transcript = await client.transcripts.transcribe({
       audio: audioSource,
       speaker_labels: true,
       speech_models: ["universal-2"],
-      summarization: true,
-      summary_type: "paragraph",
-      auto_chapters: true,
     });
 
     if (transcript.status === "error") {
@@ -88,20 +85,12 @@ export async function POST(request) {
       ),
     ]);
 
-    // Fallback to built-in summarization if LeMUR is unavailable
-    const builtInSummary = transcript.summary || null;
-    const chapters = (transcript.chapters ?? []).map((ch) => ch.headline);
-    const builtInTopics =
-      chapters.length > 0 ? chapters.map((h) => `- ${h}`).join("\n") : null;
-
     return Response.json({
       utterances,
-      summary: summary || builtInSummary,
+      summary,
       actionItems,
-      topics: topics || builtInTopics,
+      topics,
       lemurAvailable: summary !== null,
-      summaryAvailable: summary !== null || builtInSummary !== null,
-      topicsAvailable: topics !== null || builtInTopics !== null,
     });
   } catch (err) {
     console.error("Transcription error:", err);

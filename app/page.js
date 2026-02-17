@@ -21,13 +21,6 @@ const STEPS = [
   { key: "analyzing", label: "Generating AI notes with LeMUR" },
 ];
 
-const TABS = [
-  { key: "summary", label: "Summary" },
-  { key: "actions", label: "Action Items" },
-  { key: "topics", label: "Topics" },
-  { key: "transcript", label: "Transcript" },
-];
-
 export default function Home() {
   const [url, setUrl] = useState("");
   const [file, setFile] = useState(null);
@@ -35,7 +28,9 @@ export default function Home() {
   const [step, setStep] = useState(null);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState("summary");
+  const [summary, setSummary] = useState(null);
+  const [summarizing, setSummarizing] = useState(false);
+  const [summaryError, setSummaryError] = useState(null);
   const fileInputRef = useRef(null);
 
   async function handleSubmit(e) {
@@ -45,6 +40,8 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setSummary(null);
+    setSummaryError(null);
     setStep("uploading");
 
     try {
@@ -75,12 +72,46 @@ export default function Home() {
       }
 
       setResult(data);
-      setActiveTab(data.summaryAvailable ? "summary" : "transcript");
+      // If LeMUR provided a summary, use it directly
+      if (data.lemurAvailable && data.summary) {
+        setSummary(data.summary);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
       setStep(null);
+    }
+  }
+
+  async function handleSummarize() {
+    if (!result || summarizing) return;
+
+    setSummarizing(true);
+    setSummaryError(null);
+
+    try {
+      const text = result.utterances
+        .map((u) => `Speaker ${u.speaker}: ${u.text}`)
+        .join("\n");
+
+      const res = await fetch("/api/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate summary");
+      }
+
+      setSummary(data.summary);
+    } catch (err) {
+      setSummaryError(err.message);
+    } finally {
+      setSummarizing(false);
     }
   }
 
@@ -103,11 +134,15 @@ export default function Home() {
       .map((u) => `**Speaker ${u.speaker}:** ${u.text}`)
       .join("\n\n");
 
-    const lemurSection = result.lemurAvailable
-      ? `## Summary\n\n${result.summary}\n\n---\n\n## Action Items\n\n${result.actionItems}\n\n---\n\n## Topics Discussed\n\n${result.topics}\n\n---\n\n`
+    const summarySection = summary
+      ? `## Summary\n\n${summary}\n\n---\n\n`
       : "";
 
-    return `# Meeting Notes\n\n*Generated on ${new Date().toLocaleString()}*\n\n---\n\n${lemurSection}## Full Transcript\n\n${lines}\n`;
+    const lemurSection = result.lemurAvailable
+      ? `## Action Items\n\n${result.actionItems}\n\n---\n\n## Topics Discussed\n\n${result.topics}\n\n---\n\n`
+      : "";
+
+    return `# Meeting Notes\n\n*Generated on ${new Date().toLocaleString()}*\n\n---\n\n${summarySection}${lemurSection}## Full Transcript\n\n${lines}\n`;
   }
 
   function downloadMarkdown() {
@@ -351,97 +386,99 @@ export default function Home() {
             {/* Results header */}
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-serif text-2xl text-ink">Your Notes</h2>
-              <button
-                onClick={downloadMarkdown}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium tracking-wide uppercase text-ink-muted border border-rule rounded-sm hover:border-ink-muted hover:text-ink transition-colors"
-              >
-                <svg
-                  className="w-3.5 h-3.5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                  />
-                </svg>
-                Download .md
-              </button>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex gap-0 border-b border-rule mb-0">
-              {TABS.filter((t) => {
-                if (t.key === "transcript") return true;
-                if (t.key === "summary") return result.summaryAvailable;
-                if (t.key === "topics") return result.topicsAvailable;
-                if (t.key === "actions") return result.lemurAvailable;
-                return result.lemurAvailable;
-              }).map((t) => (
+              <div className="flex items-center gap-2">
                 <button
-                  key={t.key}
-                  onClick={() => setActiveTab(t.key)}
-                  className={`px-4 py-2.5 text-sm font-medium transition-colors relative whitespace-nowrap ${
-                    activeTab === t.key
-                      ? "text-ink"
-                      : "text-ink-muted hover:text-ink"
-                  }`}
+                  onClick={downloadMarkdown}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium tracking-wide uppercase text-ink-muted border border-rule rounded-sm hover:border-ink-muted hover:text-ink transition-colors"
                 >
-                  {t.label}
-                  {activeTab === t.key && (
-                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-terracotta" />
-                  )}
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                    />
+                  </svg>
+                  Download .md
                 </button>
-              ))}
+              </div>
             </div>
 
-            {/* Tab Content */}
-            <div className="card p-6 sm:p-8 border-t-0">
-              {activeTab === "summary" && result.summaryAvailable && (
+            {/* Summary Section */}
+            <div className="card p-6 sm:p-8 mb-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif text-lg text-ink">Summary</h3>
+                {!summary && (
+                  <button
+                    onClick={handleSummarize}
+                    disabled={summarizing}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium tracking-wide text-white bg-terracotta hover:bg-terracotta-light rounded-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {summarizing ? (
+                      <>
+                        <div className="spinner !w-3 !h-3 !border-white/30 !border-t-white" />
+                        Summarizing...
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={1.5}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456z"
+                          />
+                        </svg>
+                        Summarize
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+
+              {summary ? (
                 <div className="fade-up">
                   <p className="text-ink-light leading-[1.8] text-[15px] whitespace-pre-wrap">
-                    {result.summary}
+                    {summary}
                   </p>
                 </div>
+              ) : summaryError ? (
+                <p className="text-terracotta text-sm">{summaryError}</p>
+              ) : (
+                <p className="text-ink-muted/60 text-sm italic">
+                  Click &ldquo;Summarize&rdquo; to generate an AI summary of
+                  the transcript.
+                </p>
               )}
+            </div>
 
-              {activeTab === "actions" && result.lemurAvailable && (
-                <div className="fade-up">
-                  <div className="text-ink-light leading-[1.8] text-[15px] whitespace-pre-wrap">
-                    {result.actionItems}
+            {/* Transcript */}
+            <div className="card p-6 sm:p-8">
+              <h3 className="font-serif text-lg text-ink mb-4">Transcript</h3>
+              <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                {result.utterances.map((u, i) => (
+                  <div key={i} className="group">
+                    <span
+                      className={`text-xs font-semibold tracking-wide uppercase ${speakerColor(u.speaker)}`}
+                    >
+                      Speaker {u.speaker}
+                    </span>
+                    <p className="text-ink-light text-[15px] leading-[1.7] mt-0.5">
+                      {u.text}
+                    </p>
                   </div>
-                </div>
-              )}
-
-              {activeTab === "topics" && result.topicsAvailable && (
-                <div className="fade-up">
-                  <div className="text-ink-light leading-[1.8] text-[15px] whitespace-pre-wrap">
-                    {result.topics}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === "transcript" && (
-                <div className="fade-up">
-                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-                    {result.utterances.map((u, i) => (
-                      <div key={i} className="group">
-                        <span
-                          className={`text-xs font-semibold tracking-wide uppercase ${speakerColor(u.speaker)}`}
-                        >
-                          Speaker {u.speaker}
-                        </span>
-                        <p className="text-ink-light text-[15px] leading-[1.7] mt-0.5">
-                          {u.text}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           </div>
         )}
